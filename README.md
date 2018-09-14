@@ -1,4 +1,5 @@
 # NLG-RL
+This repository provides PyTorch implementations of our method [1] for reinforcement learning for sentence generation with action-space reduction.
 
 ## Requirements
 * Python 3.X
