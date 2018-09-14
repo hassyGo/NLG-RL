@@ -59,12 +59,10 @@ parser.add_argument('--clip', type = float, default = '1.0',
 args = parser.parse_args()
 print(args)
 
-# En-Ja dev
 sourceDevFile = args.dev_source
 sourceOrigDevFile = sourceDevFile
 targetDevFile = args.dev_target
 
-# En-Ja train
 sourceTrainFile = args.train_source
 sourceOrigTrainFile = sourceTrainFile
 targetTrainFile = args.train_target
