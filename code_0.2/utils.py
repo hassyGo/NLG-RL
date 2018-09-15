@@ -22,6 +22,9 @@ def buildBatchList(dataSize, batchSize):
 
     return batchList
 
+def flatten(bldTensor):
+    return bldTensor.contiguous().view(bldTensor.size(0)*bldTensor.size(1), bldTensor.size(2))
+
 @jit(nopython = True)
 def gleu_pre(s1, s2, N):
     totalNgram = 0.0
@@ -81,3 +84,20 @@ def evalVocGen(batchSize, output_list, batchInputTarget, lengthsTarget, eosIndex
             if t in imap:
                 recall += 1.0
     return recall
+
+@jit('(int32, int64[:,:], int64[:,:], int32[:], int64[:], int32, int32)')
+def convertTargetIndex(batchSize, batchInputTarget, output_list, lengthsTarget, batchTarget, maxTargetLen, eosIndex):
+    offset = 0
+    for i in range(batchSize):
+        imap = set(batchInputTarget[i, 1:1+lengthsTarget[i]-1])
+        imap.add(eosIndex)
+        
+        imap2 = dict()
+        l = lengthsTarget[i]
+        for j in range(l+1):
+            index = output_list[i, j]
+            imap2[index] = j
+        for j in range(l):
+            index = batchTarget[offset+j]
+            batchTarget[offset+j] = imap2[index]
+        offset += maxTargetLen
