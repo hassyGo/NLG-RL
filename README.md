@@ -7,11 +7,17 @@ This repository provides PyTorch implementations of our method [1] for reinforce
 * Numba
 
 ## Training NMT models
+### Small softmax
 * Vocabulary predictor (minimal usage with the default settings used in our paper)<br>
 `python train_vocgen.py --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 * NMT with cross-entropy (minimal usage <b>after training the vocabulary predictor</b>)<br>
-`python train_nmt.py --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br>
-or the full softmax baseline <b>without the vocabulary predictor</b><br>
+`python train_nmt.py --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
+* NMT with REINFORCE and cross-entropy<br>
+
+---- Under construction ----
+
+### Full softmax (standard baseline)
+* NMT with cross-entropy (minimal usage <b>without using the vocabulary predictor</b>)<br>
 `python train_nmt.py --K -1 --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 * NMT with REINFORCE and cross-entropy<br>
 
