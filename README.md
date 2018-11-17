@@ -17,13 +17,13 @@ The input data format is <b>one sentence per line</b> for each language.
 * NMT with cross-entropy (minimal usage <b>after training the vocabulary predictor</b>)<br>
 `python train_nmt.py --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 * NMT with REINFORCE and cross-entropy<br>
----- Under construction ----
+`python train_nmt_rl.py --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 
 ### Full softmax (standard baseline)
 * NMT with cross-entropy (minimal usage <b>without using the vocabulary predictor</b>)<br>
 `python train_nmt.py --K -1 --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 * NMT with REINFORCE and cross-entropy<br>
----- Under construction ----
+`python train_nmt_rl.py --K -1 --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 
 ## Reference
 [1] <b>Kazuma Hashimoto</b> and Yoshimasa Tsuruoka. 2018. Accelerated Reinforcement Learning for Sentence Generation by Vocabulary Prediction. <a href="https://arxiv.org/abs/1809.01694">arXiv cs.CL 1809.01694<a/>. (<a href="http://www.logos.t.u-tokyo.ac.jp/~hassy/publications/arxiv2018fastrl/bibtex.bib">bibtex</a>)

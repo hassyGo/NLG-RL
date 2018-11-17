@@ -170,21 +170,6 @@ if useSmallSoftmax:
 
 encdec.softmaxLayer.weight.weight = embedding.targetEmbedding.weight
 
-'''
-# how to load NMT model parameters
-all_state_dict = torch.load(nmtFile)
-embedding_state_dict = {}
-encdec_state_dict = {}
-for s in all_state_dict:
-    if 'Embedding' in s:
-        embedding_state_dict[s] = all_state_dict[s]
-    else:
-        encdec_state_dict[s] = all_state_dict[s]
-embedding.load_state_dict(embedding_state_dict)
-encdec.load_state_dict(encdec_state_dict)
-'''
-
-
 embedding.cuda()
 encdec.cuda()
 
