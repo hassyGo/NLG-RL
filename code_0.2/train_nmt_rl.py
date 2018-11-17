@@ -2,6 +2,7 @@ from data import Corpus
 from model import Embedding
 from model import EncDec
 from model import VocGenerator
+from model import BaselineEstimator
 import utils
 
 import torch
@@ -20,7 +21,7 @@ import numpy as np
 
 import argparse
 
-parser = argparse.ArgumentParser(description='Pre-training machine translation model with or without vocabulary prediction')
+parser = argparse.ArgumentParser(description='Reinforcement learning of machine translation model with or without vocabulary prediction')
 
 parser.add_argument('--seed', type = int, default = 1,
                     help='Random seed')
@@ -44,6 +45,8 @@ parser.add_argument('--dev_target', type = str, required = True,
 parser.add_argument('--model_vocgen', type = str, default = './params/vocgen.bin',
                     help = 'File name for loading model parameters of trained vocabulary predictor')
 parser.add_argument('--model_nmt', type = str, default = './params/nmt.bin',
+                    help = 'File name for loading model parameters of pre-trained NMT')
+parser.add_argument('--model_nmt_rl', type = str, default = './params/nmt_rl.bin',
                     help = 'File name for saving model parameters')
 
 parser.add_argument('--trans_file', type = str, default = './trans.txt',
@@ -70,7 +73,7 @@ parser.add_argument('--layers', type = int, default = '1',
                     help = 'Number of LSTM layers (currently, 1 or 2)')
 parser.add_argument('--mepoch', type = int, default = '20',
                     help = 'Maximum number of training epochs')
-parser.add_argument('--lr', type = float, default = '1.0',
+parser.add_argument('--lr', type = float, default = '0.01',
                     help = 'Learning rate for SGD')
 parser.add_argument('--momentum', type = float, default = '0.75',
                     help = 'Momentum rate for SGD')
@@ -85,6 +88,9 @@ parser.add_argument('--wd', type = float, default = '1.0e-06',
 parser.add_argument('--clip', type = float, default = '1.0',
                     help = 'Clipping value for gradient norm')
 
+parser.add_argument('--lam', type = float, default = '0.005',
+                    help = 'Coefficient "lambda" for joint loss function')
+
 args = parser.parse_args()
 print(args)
 
@@ -98,6 +104,7 @@ targetTrainFile = args.train_target
 
 vocGenFile = args.model_vocgen
 nmtFile = args.model_nmt
+nmtRlFile = args.mode_nmt_rl
 
 transFile = args.trans_file
 goldFile = args.gold_file
@@ -113,7 +120,7 @@ numLayers = args.layers
     
 maxLen = args.mlen
 maxEpoch = args.mepoch
-decayStart = 5
+decayStart = 10
 
 sourceEmbedDim = hiddenDim
 targetEmbedDim = hiddenDim
@@ -131,6 +138,8 @@ seed = args.seed
 weightDecay = args.wd
 
 K = args.K
+
+lam = args.lam
 
 torch.set_num_threads(1)
 
@@ -161,6 +170,7 @@ print()
 embedding = Embedding(sourceEmbedDim, targetEmbedDim, corpus.sourceVoc.size(), corpus.targetVoc.size())
 encdec = EncDec(sourceEmbedDim, targetEmbedDim, hiddenDim,
                 corpus.targetVoc.size(), useSmallSoftmax = useSmallSoftmax, dropoutRate = dropoutRate, numLayers = numLayers)
+bse = BaselineEstimator(hiddenDim)
 
 if useSmallSoftmax:
     vocGen = VocGenerator(vocGenHiddenDim, corpus.targetVoc.size(), corpus.sourceVoc.size())
@@ -170,23 +180,24 @@ if useSmallSoftmax:
 
 encdec.softmaxLayer.weight.weight = embedding.targetEmbedding.weight
 
-'''
 # how to load NMT model parameters
-all_state_dict = torch.load(nmtFile)
-embedding_state_dict = {}
-encdec_state_dict = {}
-for s in all_state_dict:
-    if 'Embedding' in s:
-        embedding_state_dict[s] = all_state_dict[s]
-    else:
-        encdec_state_dict[s] = all_state_dict[s]
-embedding.load_state_dict(embedding_state_dict)
-encdec.load_state_dict(encdec_state_dict)
-'''
-
+if os.path.exists(nmtFile):
+    all_state_dict = torch.load(nmtFile)
+    embedding_state_dict = {}
+    encdec_state_dict = {}
+    for s in all_state_dict:
+        if 'Embedding' in s:
+            embedding_state_dict[s] = all_state_dict[s]
+        else:
+            encdec_state_dict[s] = all_state_dict[s]
+    embedding.load_state_dict(embedding_state_dict)
+    encdec.load_state_dict(encdec_state_dict)
+else:
+    print('****** No pre-trained model found --> training from scratch ******')
 
 embedding.cuda()
 encdec.cuda()
+bse.cuda()
 
 batchListTrain = utils.buildBatchList(len(corpus.trainData), batchSize)
 batchListDev = utils.buildBatchList(len(corpus.devData), batchSize)
@@ -201,7 +212,19 @@ for name, param in list(embedding.named_parameters())+list(encdec.named_paramete
 optParams = [{'params': withWeightDecay, 'weight_decay': weightDecay},
              {'params': withoutWeightDecay, 'weight_decay': 0.0}]
 totalParamsNMT = withoutWeightDecay+withWeightDecay
-opt = optim.SGD(optParams, momentum = momentumRate, lr = learningRate)
+optNMT = optim.SGD(optParams, momentum = momentumRate, lr = learningRate)
+
+withoutWeightDecay = []
+withWeightDecay = []
+for name, param in bse.named_parameters():
+    if 'bias' in name:
+        withoutWeightDecay += [param]
+    else:
+        withWeightDecay += [param]
+optParams = [{'params': withWeightDecay, 'weight_decay': weightDecay},
+             {'params': withoutWeightDecay, 'weight_decay': 0.0}]
+totalParamsBSE = withoutWeightDecay+withWeightDecay
+optBSE = optim.Adam(optParams, lr = 1.0e-03)
 
 bestDevGleu = -1.0
 prevDevGleu = -1.0
@@ -254,6 +277,7 @@ for epoch in range(maxEpoch):
 
     embedding.train()
     encdec.train()
+    bse.train()
 
     for batch in batchListTrain:
         print('\r', end = '')
@@ -277,20 +301,60 @@ for epoch in range(maxEpoch):
         else:
             output_list = None
 
+        # Cross-entropy
         batchInputTarget = batchInputTarget.cuda()
         batchTarget = batchTarget.cuda()
         inputTarget = embedding.getBatchedTargetEmbedding(batchInputTarget)
-        output = encdec(inputTarget, lengthsTarget, lengthsSource, (hn, cn), sourceH, output_list)
-            
+        output = encdec(inputTarget, lengthsTarget, lengthsSource, (hn, cn), sourceH, output_list)            
         loss = encdec.softmaxLayer.computeLoss(output, batchTarget)
         totalLoss += loss.data[0]
         totalTrainTokenCount += tokenCount
         loss /= batchSize
-            
-        opt.zero_grad()
+
+        # REINFORCE
+        indicesSample, lengthsSample, logProbs, finalHiddenAll = encdec.sample(corpus.targetVoc.bosIndex, corpus.targetVoc.eosIndex, lengthsSource, embedding.targetEmbedding, sourceH, (hn, cn), useSmallSoftmax = useSmallSoftmax, output_list = output_list, train = True, greedyProb = 0.0, maxGenLen = maxLen)
+
+        indicesSample = indicesSample.cpu()
+        batchInputTarget = batchInputTarget.cpu()
+        gleuSample = torch.FloatTensor(batchSize)
+        for index in range(batchSize):
+            if lengthsSample[index] == 1:
+                gleuSample[index] = 0.0
+            elif lengthsTarget[index] == 1:
+                gleuSample[index] = utils.gleu(indicesSample.data[index, 0:lengthsSample[index]-1].numpy(), batchInputTarget.data[index, 1:].numpy())
+            else:
+                gleuSample[index] = utils.gleu(indicesSample.data[index, 0:lengthsSample[index]-1].numpy(), batchInputTarget.data[index, 1:lengthsTarget[index]].numpy())
+
+        gleuSample = Variable(gleuSample.unsqueeze(1), requires_grad = False).cuda() # (B, 1)
+        expectedReward = bse(finalHiddenAll).squeeze(2)
+        expectedReward = F.sigmoid(expectedReward) # (B, Lt)
+
+        rewardDiff = gleuSample-expectedReward[0:batchSize, :]
+
+        lossWeightRL = torch.cuda.FloatTensor(logProbs.size()).zero_()
+        lossWeightER = torch.cuda.FloatTensor(rewardDiff.size()).zero_()
+        for index in range(batchSize):
+            lossWeightRL[index, 0:lengthsSample[index]].copy_(rewardDiff.data[index, 0:lengthsSample[index]])
+            lossWeightER[index, 0:lengthsSample[index]].fill_(1.0)
+        lossWeightRL = Variable(lossWeightRL, requires_grad = False)
+        lossWeightER = Variable(lossWeightER, requires_grad = False)
+
+        lossER = rewardDiff.mul(rewardDiff).mul(lossWeightER).sum()
+        lossER /= batchSize
+        lossRL = -logProbs.mul(lossWeightRL).sum()/batchSize
+
+        loss = lam * loss + (1.0-lam) * lossRL
+        loss += lossER
+        
+        optNMT.zero_grad()
+        optBSE.zero_grad()
         loss.backward()
+
         nn.utils.clip_grad_norm(totalParamsNMT, gradClip)
-        opt.step()
+        optNMT.step()
+
+        nn.utils.clip_grad_norm(totalParamsBSE, gradClip)
+        optBSE.step()
 
         batchProcessed += 1
         if batchProcessed == len(batchListTrain)//2 or batchProcessed == len(batchListTrain):
@@ -300,6 +364,7 @@ for epoch in range(maxEpoch):
 
             embedding.eval()
             encdec.eval()
+            bse.eval()
 
             print()
             print('Training time: ' + str(time.time()-startTime) + ' sec')
@@ -359,6 +424,7 @@ for epoch in range(maxEpoch):
             
             embedding.train()
             encdec.train()
+            bse.train()
 
             if epoch > decayStart and devGleu < prevDevGleu:
                 print('lr -> ' + str(learningRate*decay))
@@ -372,9 +438,10 @@ for epoch in range(maxEpoch):
 
                 stateDict = embedding.state_dict().copy()
                 stateDict.update(encdec.state_dict())
+                stateDict.update(bse.state_dict())
                 for elem in stateDict:
                     stateDict[elem] = stateDict[elem].cpu()
-                torch.save(stateDict, nmtFile)
+                torch.save(stateDict, nmtRlFile)
                 
             prevDevGleu = devGleu
 
