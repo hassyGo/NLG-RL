@@ -409,7 +409,8 @@ class EncDec(nn.Module):
             logProbs = output.gather(dim = 1, index = sampledIndices.view(-1, 1))
             logProbs = logProbs.view(outputSize[0], outputSize[1])
             
-            finalHiddenAll = torch.FloatTensor(finalHiddenAll.size()).copy_(finalHiddenAll.data).to(device)
+            #finalHiddenAll = torch.FloatTensor(finalHiddenAll.size()).copy_(finalHiddenAll.data).to(device)
+            finalHiddenAll = finalHiddenAll.data
 
             return targetWordIndices, list(targetWordLengths), logProbs, finalHiddenAll
         else:
