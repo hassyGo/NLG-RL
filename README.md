@@ -26,7 +26,7 @@ The input data format is <b>one sentence per line</b> for each language.
 `python train_nmt_rl.py --K -1 --train_source XX --train_target YY --dev_source ZZ --dev_target WW`<br><br>
 
 ## Reference
-[1] <b>Kazuma Hashimoto</b> and Yoshimasa Tsuruoka. 2018. Accelerated Reinforcement Learning for Sentence Generation by Vocabulary Prediction. <a href="https://arxiv.org/abs/1809.01694">arXiv cs.CL 1809.01694<a/>. (<a href="http://www.logos.t.u-tokyo.ac.jp/~hassy/publications/arxiv2018fastrl/bibtex.bib">bibtex</a>)
+[1] <b>Kazuma Hashimoto</b> and Yoshimasa Tsuruoka. 2019. Accelerated Reinforcement Learning for Sentence Generation by Vocabulary Prediction. In <i>Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (NAACL-HLT 2019)</i>, <a href="https://arxiv.org/abs/1809.01694">arXiv cs.CL 1809.01694<a/>. (<a href="http://www.logos.t.u-tokyo.ac.jp/~hassy/publications/arxiv2018fastrl/bibtex.bib">bibtex</a>)
 
 ## Questions?
 Any issues and PRs are welcome.
