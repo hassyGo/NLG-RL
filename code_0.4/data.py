@@ -239,7 +239,7 @@ class Corpus:
 
         return batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, data, maxLen
 
-    def processBatchInfoVocGen(self, batchData, train = True, smoothing = True, device):
+    def processBatchInfoVocGen(self, batchData, train = True, smoothing = True, device = None):
         batchSize = len(batchData)
 
         genVocInput = []

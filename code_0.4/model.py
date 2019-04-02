@@ -127,7 +127,7 @@ class VocGenerator(nn.Module):
         return output
 
     def computeLoss(self, output, target):
-        return F.binary_cross_entropy_with_logits(output, target, weight = None, size_average = False)
+        return F.binary_cross_entropy_with_logits(output, target, weight = None, reduction = 'sum')
 
 
 class BaselineEstimator(nn.Module):
