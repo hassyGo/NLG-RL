@@ -60,7 +60,7 @@ class SmallSoftmax(nn.Module):
             return torch.baddbmm(self.bias_subset.transpose(1, 2), input, self.weight_subset.transpose(1, 2))
 
     def computeLoss(self, output, target):
-        return F.cross_entropy(output, target, size_average = False, ignore_index = -1)
+        return F.cross_entropy(output, target, reduction = 'sum', ignore_index = -1)
 
 
 class ResBlock(nn.Module):
@@ -292,7 +292,7 @@ class EncDec(nn.Module):
             prevFinalHidden = self.finalHiddenAct(prevFinalHidden)
             prevFinalHidden = self.dropout(prevFinalHidden)
 
-            finalHidden[:, i, :] = prevFinalHidden
+            finalHidden[:, i:i+1, :] = prevFinalHidden
 
         if output_list is None:
             finalHidden = utils.flatten(finalHidden)

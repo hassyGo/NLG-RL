@@ -115,7 +115,7 @@ print('K = ', K)
 print()
 
 vocGen = VocGenerator(vocGenHiddenDim, corpus.targetVoc.size(), corpus.sourceVoc.size(), dropoutRate)
-vocGen.cuda()
+vocGen.to(device)
 
 batchListTrain = utils.buildBatchList(len(corpus.trainData), batchSize)
 batchListDev = utils.buildBatchList(len(corpus.devData), batchSize)
@@ -170,6 +170,8 @@ for epoch in range(maxEpoch):
             totalTokenCount = 0.0
 
             vocGen.eval()
+
+            torch.set_grad_enabled(False)
             
             recall =  0.0
 
@@ -183,7 +185,7 @@ for epoch in range(maxEpoch):
                 tmp = outputVocGen.data
                 val, output_list = torch.topk(tmp, k = K)
                 
-                output_list = output_list.cpu()
+                output_list = output_list.to(cpu)
 
                 recallTmp = utils.evalVocGen(batchSize, output_list.numpy(), batchInputTarget.data.numpy(), lengthsTarget, corpus.targetVoc.eosIndex)
                 recall += recallTmp
@@ -194,6 +196,9 @@ for epoch in range(maxEpoch):
             
             print()
             print("Recall of voc predictor:", devRecall, '(%)')
+
+            torch.set_grad_enabled(True)
+
             vocGen.train()
 
             if devRecall < prevDevRecall:
@@ -208,7 +213,7 @@ for epoch in range(maxEpoch):
 
                 stateDict = vocGen.state_dict()
                 for elem in stateDict:
-                    stateDict[elem] = stateDict[elem].cpu()
+                    stateDict[elem] = stateDict[elem].to(cpu)
                 torch.save(stateDict, vocGenFile)
 
             prevDevRecall = devRecall
