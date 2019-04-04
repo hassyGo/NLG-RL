@@ -186,7 +186,7 @@ class Corpus:
         return stat
 
         
-    def processBatchInfoNMT(self, batch, train, device):
+    def processBatchInfoNMT(self, batch, device, data_ = None):
         begin = batch[0]
         end = batch[1]
         batchSize = end-begin+1
@@ -194,10 +194,11 @@ class Corpus:
         '''
         Process source info
         '''
-        if train:
-            data = sorted(self.trainData[begin:end+1], key = lambda x: -len(x.sourceText))
+        if data_ is not None:
+            data = data_
+            batchSize = len(data)
         else:
-            data = sorted(self.devData[begin:end+1], key = lambda x: -len(x.sourceText))
+            data = self.devData[begin:end+1]
 
         maxLen = len(data[0].sourceText)
         batchInputSource = torch.LongTensor(batchSize, maxLen)

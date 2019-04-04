@@ -84,6 +84,9 @@ parser.add_argument('--wd', type = float, default = '1.0e-06',
 parser.add_argument('--clip', type = float, default = '1.0',
                     help = 'Clipping value for gradient norm')
 
+parser.add_argument('--batch_split_size', type = int, default = '1',
+                    help = 'Splitting each mini-batch into smaller chunks to reduce GPU memory consumption')
+
 args = parser.parse_args()
 print(args)
 
@@ -120,6 +123,7 @@ targetEmbedDim = hiddenDim
 vocGenHiddenDim = args.dim_vocgen
 
 batchSize = args.bs
+batchSplitSize = args.batch_split_size
 
 learningRate = args.lr
 momentumRate = args.momentum
@@ -177,6 +181,8 @@ encdec.to(device)
 
 batchListTrain = utils.buildBatchList(len(corpus.trainData), batchSize)
 batchListDev = utils.buildBatchList(len(corpus.devData), batchSize)
+corpus.trainData = sorted(corpus.trainData, key = lambda x: -len(x.sourceText))
+corpus.devData = sorted(corpus.devData, key = lambda x: -len(x.sourceText))
 
 withoutWeightDecay = []
 withWeightDecay = []
@@ -199,7 +205,7 @@ if useSmallSoftmax:
     for batch in batchListDev:
         batchSize = batch[1]-batch[0]+1
 
-        batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, train = False, device = device)
+        batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, device = device)
 
         targetVocGen, inputVocGen = corpus.processBatchInfoVocGen(batchData, smoothing = False, device = device)
         outputVocGen = vocGen(inputVocGen)
@@ -214,7 +220,7 @@ if useSmallSoftmax:
     for batch in batchListTrain:
         batchSize = batch[1]-batch[0]+1
 
-        batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, train = True, device = device)
+        batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, device = device, data_ = corpus.trainData[batch[0]:batch[1]+1])
 
         targetVocGen, inputVocGen = corpus.processBatchInfoVocGen(batchData, smoothing = False, device = device)
         outputVocGen = vocGen(inputVocGen)
@@ -247,35 +253,48 @@ for epoch in range(maxEpoch):
         print(batchProcessed+1, '/', len(batchListTrain), end = '')
 
         batchSize = batch[1]-batch[0]+1
-        
-        batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, train = True, device = device)
-        
-        inputSource = embedding.getBatchedSourceEmbedding(batchInputSource)
-        sourceH, (hn, cn) = encdec.encode(inputSource, lengthsSource)
-        
-        if useSmallSoftmax:
-            output_list = torch.LongTensor(batchSize, K)
-            for i in range(batchSize):
-                output_list[i] = batchData[i].smallVoc
-            
-            utils.convertTargetIndex(batchSize, batchInputTarget.data.numpy(), output_list.numpy(), np.array(lengthsTarget).astype(int), batchTarget.data.numpy(), maxTargetLen, corpus.targetVoc.eosIndex)
-            
-            output_list = output_list.to(device)
-        else:
-            output_list = None
-
-        batchInputTarget = batchInputTarget.to(device)
-        batchTarget = batchTarget.to(device)
-        inputTarget = embedding.getBatchedTargetEmbedding(batchInputTarget)
-        output = encdec(inputTarget, lengthsTarget, lengthsSource, (hn, cn), sourceH, device, output_list)
-            
-        loss = encdec.softmaxLayer.computeLoss(output, batchTarget)
-        totalLoss += loss.item()
-        totalTrainTokenCount += tokenCount
-        loss /= batchSize
-            
         opt.zero_grad()
-        loss.backward()
+
+        sortedBatch = sorted(corpus.trainData[batch[0]:batch[1]+1], key = lambda x: -len(x.sourceText))
+        miniBatchData = []
+        chunk = batchSize//batchSplitSize
+
+        for i in range(batchSplitSize):
+            if i == batchSplitSize-1:
+                miniBatchData.append(sortedBatch[i*chunk:])
+            else:
+                miniBatchData.append(sortedBatch[i*chunk:(i+1)*chunk])
+
+        for batchData_ in miniBatchData:
+            miniBatchSize = len(batchData_)
+            
+            batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, device = device, data_ = batchData_)
+
+            inputSource = embedding.getBatchedSourceEmbedding(batchInputSource)
+            sourceH, (hn, cn) = encdec.encode(inputSource, lengthsSource)
+
+            if useSmallSoftmax:
+                output_list = torch.LongTensor(miniBatchSize, K)
+                for i in range(miniBatchSize):
+                    output_list[i] = batchData[i].smallVoc
+
+                utils.convertTargetIndex(miniBatchSize, batchInputTarget.data.numpy(), output_list.numpy(), np.array(lengthsTarget).astype(int), batchTarget.data.numpy(), maxTargetLen, corpus.targetVoc.eosIndex)
+
+                output_list = output_list.to(device)
+            else:
+                output_list = None
+
+            batchInputTarget = batchInputTarget.to(device)
+            batchTarget = batchTarget.to(device)
+            inputTarget = embedding.getBatchedTargetEmbedding(batchInputTarget)
+            output = encdec(inputTarget, lengthsTarget, lengthsSource, (hn, cn), sourceH, device, output_list)
+
+            loss = encdec.softmaxLayer.computeLoss(output, batchTarget)
+            totalLoss += loss.item()
+            totalTrainTokenCount += tokenCount
+            loss /= batchSize
+            loss.backward()
+            
         nn.utils.clip_grad_norm_(totalParamsNMT, gradClip)
         opt.step()
 
@@ -299,7 +318,7 @@ for epoch in range(maxEpoch):
             
             for batch in batchListDev:
                 batchSize = batch[1]-batch[0]+1
-                batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, train = False, device = device)
+                batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, device = device)
 
                 inputSource = embedding.getBatchedSourceEmbedding(batchInputSource)
                 sourceH, (hn, cn) = encdec.encode(inputSource, lengthsSource)
