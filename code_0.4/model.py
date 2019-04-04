@@ -358,7 +358,7 @@ class EncDec(nn.Module):
             prevFinalHidden = finalHidden # (B, 1, Dt)
 
             if train:
-                finalHiddenAll[:, i-1, :] = prevFinalHidden
+                finalHiddenAll[:, i-1:i, :] = prevFinalHidden
 
             if not useSmallSoftmax:
                 finalHidden = utils.flatten(finalHidden)
