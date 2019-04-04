@@ -104,7 +104,7 @@ targetTrainFile = args.train_target
 
 vocGenFile = args.model_vocgen
 nmtFile = args.model_nmt
-nmtRlFile = args.mode_nmt_rl
+nmtRlFile = args.model_nmt_rl
 
 transFile = args.trans_file
 goldFile = args.gold_file
