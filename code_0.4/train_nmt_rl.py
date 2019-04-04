@@ -336,7 +336,8 @@ for epoch in range(maxEpoch):
             loss /= batchSize
 
             # REINFORCE
-            output_list = output_list.to(cpu)
+            if output_list is not None:
+                output_list = output_list.to(cpu)
             indicesSample, lengthsSample, logProbs, finalHiddenAll = encdec.sample(corpus.targetVoc.bosIndex, corpus.targetVoc.eosIndex, lengthsSource, embedding.targetEmbedding, sourceH, (hn, cn), device = device, useSmallSoftmax = useSmallSoftmax, output_list = output_list, train = True, greedyProb = 0.0, maxGenLen = maxLen)
 
             indicesSample = indicesSample.to(cpu)
