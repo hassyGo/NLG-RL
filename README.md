@@ -39,4 +39,4 @@ By default, the BLEU scores computed by this codebase do not assume any addition
 ## Questions?
 Any issues and PRs are welcome.
 
-E-mail: hassy@logos.t.u-tokyo.ac.jp
+E-mail: hassy <at> logos.t.u-tokyo.ac.jp or k.hashimoto <at> salesforce.com
