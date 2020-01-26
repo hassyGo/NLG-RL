@@ -34,9 +34,9 @@ I added an additional option `--batch_split_size` to `train_nmt.py` and `train_n
 By default, the BLEU scores computed by this codebase do not assume any additional (de-)tokenization. Thus, if you need more specific ways to compute BLEU scores, you need to modify `bleu.sh` to incorporate your (de-)tokenization tools.
 
 ## Reference
-[1] <b>Kazuma Hashimoto</b> and Yoshimasa Tsuruoka. 2019. Accelerated Reinforcement Learning for Sentence Generation by Vocabulary Prediction. In <i>Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (<b>NAACL-HLT 2019</b>)</i>, <a href="https://arxiv.org/abs/1809.01694">arXiv cs.CL 1809.01694<a/>. (<a href="http://www.logos.t.u-tokyo.ac.jp/~hassy/publications/arxiv2018fastrl/bibtex.bib">bibtex</a>)
+[1] <b>Kazuma Hashimoto</b> and Yoshimasa Tsuruoka. 2019. Accelerated Reinforcement Learning for Sentence Generation by Vocabulary Prediction. In <i>Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (<b>NAACL-HLT 2019</b>)</i>, <a href="https://arxiv.org/abs/1809.01694">arXiv cs.CL 1809.01694</a>. (<a href="http://www.logos.t.u-tokyo.ac.jp/~hassy/publications/arxiv2018fastrl/bibtex.bib">bibtex</a>)
 
 ## Questions?
 Any issues and PRs are welcome.
 
-E-mail: hassy <at> logos.t.u-tokyo.ac.jp or k.hashimoto <at> salesforce.com
+E-mail: hassy [at] logos.t.u-tokyo.ac.jp or k.hashimoto [at] salesforce.com
