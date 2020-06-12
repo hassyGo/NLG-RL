@@ -137,6 +137,8 @@ optVocGen = optim.Adagrad(optParams, lr = learningRateVocGen)
 bestDevRecall = -1.0
 prevDevRecall = -1.0
 
+corpus.devData = sorted(corpus.devData, key = lambda x: -len(x.sourceText))
+
 for epoch in range(maxEpoch):
     batchProcessed = 0
     
@@ -151,9 +153,7 @@ for epoch in range(maxEpoch):
         print(batchProcessed+1, '/', len(batchListTrain), end = '')
         
         batchSize = batch[1]-batch[0]+1
-
-        batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, train = True, device = device)
-        
+        batchData = corpus.trainData[batch[0]:batch[1]+1]
         targetVocGen, inputVocGen = corpus.processBatchInfoVocGen(batchData, device = device)
         outputVocGen = vocGen(inputVocGen)
         
@@ -177,7 +177,7 @@ for epoch in range(maxEpoch):
 
             for batch in batchListDev:
                 batchSize = batch[1]-batch[0]+1
-                batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, train = False, device = device)
+                batchInputSource, lengthsSource, batchInputTarget, batchTarget, lengthsTarget, tokenCount, batchData, maxTargetLen = corpus.processBatchInfoNMT(batch, device = device)
 
                 targetVocGen, inputVocGen = corpus.processBatchInfoVocGen(batchData, smoothing = False, device = device)
                 outputVocGen = vocGen(inputVocGen)
